@@ -214,18 +214,6 @@ export function HomeScreen({ navigation }: NativeStackScreenProps<RootStackParam
         <Text style={styles.subtle}>Private key stored securely.</Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Network</Text>
-        <Text style={styles.subtle}>RPC: {CONFIG.rpc.primary}</Text>
-        <Text style={styles.subtle}>Fallback: {CONFIG.rpc.heliusFallback}</Text>
-      </View>
-
-      <PrimaryButton label={loading ? 'Refreshing...' : 'Refresh'} onPress={refresh} disabled={loading} />
-      <PrimaryButton
-        label={closing ? 'Closing...' : 'Close empty accounts'}
-        onPress={handleCloseEmptyAccounts}
-        disabled={closing}
-      />
       <PrimaryButton label="Remove wallet" onPress={handleRemove} style={styles.removeButton} />
     </ScrollView>
   );
@@ -237,18 +225,17 @@ const styles = StyleSheet.create({
     gap: 16
   },
   card: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
     padding: 16,
-    gap: 8
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#facc15'
   },
   label: {
     fontWeight: '700',
-    fontSize: 14
-  },
-  balance: {
-    fontSize: 24,
-    fontWeight: '700'
+    fontSize: 14,
+    color: '#6b7280'
   },
   subtle: {
     color: '#6b7280'
@@ -257,24 +244,94 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
     fontSize: 12
   },
-  smallButton: {
-    marginTop: 8
+  totalCard: {
+    backgroundColor: '#ede9fe',
+    borderRadius: 20,
+    padding: 18,
+    alignItems: 'center'
+  },
+  totalLabel: {
+    color: '#6b7280',
+    fontWeight: '600'
+  },
+  totalValue: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#7c3aed'
   },
   actions: {
-    gap: 10
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 12
   },
   actionButton: {
-    marginBottom: 6
+    width: 140,
+    height: 140,
+    justifyContent: 'center',
+    borderRadius: 24
+  },
+  assetsCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#facc15'
+  },
+  assetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between'
+  },
+  assetHeaderText: {
+    color: '#6b7280',
+    fontSize: 12,
+    fontWeight: '600'
   },
   tokenRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12
+    gap: 8,
+    paddingVertical: 6
+  },
+  tokenInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1
+  },
+  tokenLogo: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#22c55e',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  logoText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '700'
+  },
+  tokenSymbol: {
+    fontWeight: '700',
+    color: '#374151'
+  },
+  tokenPrice: {
+    color: '#6b7280',
+    fontSize: 12
+  },
+  tokenValue: {
+    minWidth: 70,
+    textAlign: 'right',
+    color: '#374151'
   },
   txRow: {
     marginBottom: 8
   },
   removeButton: {
-    backgroundColor: '#dc2626'
+    backgroundColor: '#dc2626',
+    borderColor: '#dc2626'
   }
 });

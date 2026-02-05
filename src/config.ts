@@ -1,3 +1,5 @@
+const HELIUS_API_KEY = process.env.HELIUS_API_KEY ?? '';
+
 export const CONFIG = {
   rpc: {
     primary: 'https://api.mainnet-beta.solana.com',
@@ -5,7 +7,7 @@ export const CONFIG = {
     commitment: 'confirmed'
   },
   helius: {
-    backrunApiKey: 'a4453b96-6663-4daf-b551-8aae1d403b45',
+    backrunApiKey: HELIUS_API_KEY,
     sendTransactionUrl: 'https://api.helius.xyz/v0/transactions?api-key='
   },
   fees: {

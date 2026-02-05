@@ -18,6 +18,38 @@ npm install
 npm run android
 ```
 
+## Environment variables
+
+Set `HELIUS_API_KEY` when building/running so the key is not hardcoded in the repo:
+
+```bash
+HELIUS_API_KEY=your-key npm run android
+```
+
+> Note: any API key embedded in a client app can be extracted from the APK. Use server-side proxies if you need true secrecy.
+
+## Android release build (APK)
+
+### Option A: Android Studio / Gradle (local)
+
+```bash
+npx expo prebuild
+cd android
+./gradlew assembleRelease
+```
+
+Your APK will be in `android/app/build/outputs/apk/release/`.
+
+## Icon asset
+
+The repo uses an SVG icon at `assets/icon.svg` to avoid binary files. If your build tooling requires PNG icons, export this SVG to PNG and update `app.json` accordingly.
+
+### Option B: Expo EAS build (cloud)
+
+```bash
+eas build -p android --profile production
+```
+
 ## Configuration
 
 All network and fee settings live in `src/config.ts`:
