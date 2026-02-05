@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "EATsol",
+    "slug": "eatsol",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "platforms": ["ios", "android", "web"],
+    "sdkVersion": "50.0.0",
+    "assetBundlePatterns": ["**/*"],
+    "android": {
+      "package": "com.eatsol.wallet"
+    }
+  }
+}
