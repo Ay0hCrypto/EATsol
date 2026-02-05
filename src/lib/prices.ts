@@ -17,3 +17,10 @@ export async function getBirdeyeTokenPriceUsd(mint: string) {
   const data = await response.json();
   return data?.data?.value as number | undefined;
 }
+
+export async function getTokenPriceUsd(mint: string) {
+  if (mint === 'So11111111111111111111111111111111111111112') {
+    return getSolPriceUsd();
+  }
+  return getBirdeyeTokenPriceUsd(mint);
+}

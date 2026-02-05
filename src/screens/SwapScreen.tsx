@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, Switch, View } from 'react-native';
 import { TextField } from '../components/TextField';
 import { PrimaryButton } from '../components/PrimaryButton';
@@ -15,6 +15,37 @@ export function SwapScreen() {
   const [slippage, setSlippage] = useState('50');
   const [useHelius, setUseHelius] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [tokens, setTokens] = useState<TokenOption[]>([]);
+  const [fromToken, setFromToken] = useState<TokenOption | null>(null);
+  const [toToken, setToToken] = useState<TokenOption | null>(null);
+
+  useEffect(() => {
+    const loadTokens = async () => {
+      if (!wallet) {
+        return;
+      }
+      const connection = getConnection();
+      const balances = await getBalances(connection, wallet.publicKey);
+      const options: TokenOption[] = [
+        {
+          mint: 'So11111111111111111111111111111111111111112',
+          symbol: 'SOL',
+          balance: balances.sol,
+          decimals: 9
+        },
+        ...balances.tokens.map((token) => ({
+          mint: token.mint,
+          symbol: token.mint.slice(0, 4),
+          balance: token.balance,
+          decimals: token.decimals
+        }))
+      ];
+      setTokens(options);
+      setFromToken(options[0]);
+      setToToken(options[1] ?? options[0]);
+    };
+    loadTokens();
+  }, [wallet]);
 
   const handleSwap = async () => {
     if (!wallet) {
@@ -32,10 +63,12 @@ export function SwapScreen() {
         onPress: async () => {
           setLoading(true);
           try {
+            const decimals = fromToken.decimals ?? 0;
+            const amountBaseUnits = Math.round(Number(amount) * Math.pow(10, decimals));
             const quote = await getJupiterQuote({
-              inputMint,
-              outputMint,
-              amount: Number(amount),
+              inputMint: fromToken.mint,
+              outputMint: toToken.mint,
+              amount: amountBaseUnits,
               slippageBps: Number(slippage)
             });
             const swapTransaction = await createSwapTransaction(quote, wallet.publicKey.toBase58());

@@ -1,19 +1,54 @@
-import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App';
 import { TextField } from '../components/TextField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { useWallet } from '../hooks/useWallet';
-import { getConnection, sendSol, sendSplToken } from '../lib/solana';
+import { getConnection, getBalances, sendSol, sendSplToken } from '../lib/solana';
+import { TokenSelector, TokenOption } from '../components/TokenSelector';
+import * as Clipboard from 'expo-clipboard';
 
 export function SendScreen({ navigation }: NativeStackScreenProps<RootStackParamList, 'Send'>) {
   const { wallet } = useWallet();
   const [destination, setDestination] = useState('');
   const [amount, setAmount] = useState('');
-  const [mint, setMint] = useState('');
-  const [decimals, setDecimals] = useState('');
+  const [tokens, setTokens] = useState<TokenOption[]>([]);
+  const [selectedToken, setSelectedToken] = useState<TokenOption | null>(null);
   const [sending, setSending] = useState(false);
+  const address = wallet?.publicKey.toBase58() ?? '';
+
+  useEffect(() => {
+    const loadTokens = async () => {
+      if (!wallet) {
+        return;
+      }
+      const connection = getConnection();
+      const balances = await getBalances(connection, wallet.publicKey);
+      const options: TokenOption[] = [
+        {
+          mint: 'So11111111111111111111111111111111111111112',
+          symbol: 'SOL',
+          balance: balances.sol,
+          decimals: 9
+        },
+        ...balances.tokens.map((token) => ({
+          mint: token.mint,
+          symbol: token.mint.slice(0, 4),
+          balance: token.balance,
+          decimals: token.decimals
+        }))
+      ];
+      setTokens(options);
+      setSelectedToken(options[0]);
+    };
+    loadTokens();
+  }, [wallet]);
+
+  const handleCopy = async () => {
+    await Clipboard.setStringAsync(address);
+    Alert.alert('Copied', 'Wallet address copied.');
+  };
 
   const handleSend = async () => {
     if (!wallet) {
@@ -55,13 +90,14 @@ export function SendScreen({ navigation }: NativeStackScreenProps<RootStackParam
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.heading}>Send tokens</Text>
+      <Pressable onPress={handleCopy} style={styles.addressCard}>
+        <Text style={styles.addressLabel}>Your address</Text>
+        <Text style={styles.addressValue}>{address}</Text>
+        <Text style={styles.addressHint}>Tap to copy</Text>
+      </Pressable>
       <TextField value={destination} onChangeText={setDestination} placeholder="Destination public key" />
+      <TokenSelector label="Token" tokens={tokens} selected={selectedToken} onSelect={setSelectedToken} />
       <TextField value={amount} onChangeText={setAmount} placeholder="Amount" />
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Optional SPL token</Text>
-        <TextField value={mint} onChangeText={setMint} placeholder="Token mint (leave blank for SOL)" />
-        <TextField value={decimals} onChangeText={setDecimals} placeholder="Token decimals" />
-      </View>
       <PrimaryButton label={sending ? 'Sending...' : 'Approve & Send'} onPress={handleSend} disabled={sending} />
     </ScrollView>
   );
@@ -76,10 +112,23 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700'
   },
-  section: {
-    gap: 10
+  addressCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#facc15'
   },
-  sectionTitle: {
+  addressLabel: {
+    color: '#6b7280',
     fontWeight: '600'
+  },
+  addressValue: {
+    fontFamily: 'monospace',
+    fontSize: 12
+  },
+  addressHint: {
+    color: '#9ca3af',
+    fontSize: 12
   }
 });

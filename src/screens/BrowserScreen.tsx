@@ -34,6 +34,9 @@ export function BrowserScreen() {
         ref={webviewRef}
         source={{ uri: currentUrl }}
         onMessage={handleMessage}
+        sharedCookiesEnabled
+        thirdPartyCookiesEnabled
+        cacheEnabled
         style={styles.webview}
       />
     </View>
@@ -44,7 +47,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 12,
-    gap: 8
+    gap: 8,
+    backgroundColor: '#ffffff'
   },
   toolbar: {
     flexDirection: 'row',

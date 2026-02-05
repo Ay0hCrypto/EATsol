@@ -29,8 +29,8 @@ export function TextField({ value, onChangeText, placeholder, multiline, numberO
 const styles = StyleSheet.create({
   wrapper: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 10,
+    borderColor: '#facc15',
+    borderRadius: 16,
     paddingHorizontal: 12,
     backgroundColor: '#ffffff'
   },

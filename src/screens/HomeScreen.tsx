@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { useWallet } from '../hooks/useWallet';
 import { closeEmptyTokenAccount, getConnection, getBalances } from '../lib/solana';
-import { getSolPriceUsd } from '../lib/prices';
+import { getSolPriceUsd, getTokenPriceUsd } from '../lib/prices';
 import { getConfirmedTransactions } from '../lib/transactions';
 import { CONFIG } from '../config';
 import * as Clipboard from 'expo-clipboard';
@@ -18,9 +18,16 @@ export function HomeScreen({ navigation }: NativeStackScreenProps<RootStackParam
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<number>(0);
+  const [tokenPrices, setTokenPrices] = useState<Record<string, number>>({});
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (force = false) => {
     if (!wallet) {
+      return;
+    }
+    const now = Date.now();
+    if (!force && now - lastRefresh < 120_000) {
+      Alert.alert('Refresh limited', 'You can refresh once every 2 minutes.');
       return;
     }
     setLoading(true);
@@ -34,19 +41,31 @@ export function HomeScreen({ navigation }: NativeStackScreenProps<RootStackParam
       setBalances(balanceData);
       setSolPrice(price);
       setTransactions(txs);
+      const prices: Record<string, number> = {};
+      if (balanceData.tokens.length) {
+        const priceResults = await Promise.all(
+          balanceData.tokens.map((token) => getTokenPriceUsd(token.mint).catch(() => undefined))
+        );
+        balanceData.tokens.forEach((token, index) => {
+          prices[token.mint] = priceResults[index] ?? 0;
+        });
+      }
+      prices['So11111111111111111111111111111111111111112'] = price;
+      setTokenPrices(prices);
+      setLastRefresh(now);
     } catch (error) {
       Alert.alert('Refresh failed', 'Unable to load balances or transactions.');
     } finally {
       setLoading(false);
     }
-  }, [wallet]);
+  }, [wallet, lastRefresh]);
 
   useEffect(() => {
     if (!wallet) {
       navigation.reset({ index: 0, routes: [{ name: 'Import' }] });
       return;
     }
-    refresh();
+    refresh(true);
   }, [wallet, navigation, refresh]);
 
   const handleCopy = async () => {
@@ -61,70 +80,56 @@ export function HomeScreen({ navigation }: NativeStackScreenProps<RootStackParam
     navigation.reset({ index: 0, routes: [{ name: 'Import' }] });
   };
 
-  const handleCloseEmptyAccounts = async () => {
-    if (!wallet || !balances) {
+  const handleCloseAccount = async (tokenAccount: string) => {
+    if (!wallet) {
       return;
     }
-    const emptyAccounts = balances.tokens.filter((token) => token.balance === 0);
-    if (!emptyAccounts.length) {
-      Alert.alert('No empty accounts', 'There are no empty token accounts to close.');
-      return;
-    }
-    Alert.alert(
-      'Close empty accounts',
-      `Close ${emptyAccounts.length} accounts for a fee of ${CONFIG.fees.closeAccountFeeSol} SOL each?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Approve',
-          onPress: async () => {
-            setClosing(true);
-            try {
-              const connection = getConnection();
-              const feeDestination = new PublicKey(CONFIG.fees.feeWallet);
-              const feeLamports = Math.round(CONFIG.fees.closeAccountFeeSol * 1_000_000_000);
-              for (const account of emptyAccounts) {
-                await closeEmptyTokenAccount(connection, wallet, new PublicKey(account.address), feeDestination, feeLamports);
-              }
-              Alert.alert('Success', 'Closed empty accounts.');
-              refresh();
-            } catch (error) {
-              Alert.alert('Close failed', 'Unable to close empty accounts.');
-            } finally {
-              setClosing(false);
-            }
+    Alert.alert('Close account', 'Do you want to close this account?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Close',
+        onPress: async () => {
+          setClosing(true);
+          try {
+            const connection = getConnection();
+            const feeDestination = new PublicKey(CONFIG.fees.feeWallet);
+            const feeLamports = Math.round(CONFIG.fees.closeAccountFeeSol * 1_000_000_000);
+            await closeEmptyTokenAccount(connection, wallet, new PublicKey(tokenAccount), feeDestination, feeLamports);
+            Alert.alert('Closed', 'Account closed successfully.');
+            refresh(true);
+          } catch (error) {
+            Alert.alert('Close failed', 'Unable to close account.');
+          } finally {
+            setClosing(false);
           }
         }
-      ]
-    );
+      }
+    ]);
   };
 
+  const totalUsd = useMemo(() => {
+    if (!balances || !solPrice) {
+      return 0;
+    }
+    const solUsd = balances.sol * solPrice;
+    const tokenUsd = balances.tokens.reduce((sum, token) => sum + token.balance * (tokenPrices[token.mint] ?? 0), 0);
+    return solUsd + tokenUsd;
+  }, [balances, solPrice, tokenPrices]);
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.label}>Account</Text>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={() => refresh()} tintColor="#7c3aed" />}
+    >
+      <Pressable onPress={handleCopy} style={styles.card}>
+        <Text style={styles.label}>Wallet address</Text>
         <Text style={styles.mono}>{wallet?.publicKey.toBase58()}</Text>
-        <PrimaryButton label="Copy" onPress={handleCopy} style={styles.smallButton} />
-      </View>
+        <Text style={styles.subtle}>Tap to copy</Text>
+      </Pressable>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>SOL Balance</Text>
-        <Text style={styles.balance}>{balances ? balances.sol.toFixed(4) : '--'} SOL</Text>
-        <Text style={styles.subtle}>USD: {solPrice ? (balances ? balances.sol * solPrice : 0).toFixed(2) : '--'}</Text>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.label}>Tokens</Text>
-        {balances?.tokens.length ? (
-          balances.tokens.map((token) => (
-            <View style={styles.tokenRow} key={token.address}>
-              <Text style={styles.mono}>{token.mint}</Text>
-              <Text>{token.balance}</Text>
-            </View>
-          ))
-        ) : (
-          <Text style={styles.subtle}>No SPL tokens found.</Text>
-        )}
+      <View style={styles.totalCard}>
+        <Text style={styles.totalLabel}>Total balance</Text>
+        <Text style={styles.totalValue}>${totalUsd.toFixed(2)}</Text>
       </View>
 
       <View style={styles.actions}>
@@ -132,6 +137,61 @@ export function HomeScreen({ navigation }: NativeStackScreenProps<RootStackParam
         <PrimaryButton label="Receive" onPress={() => navigation.navigate('Receive')} style={styles.actionButton} />
         <PrimaryButton label="Swap" onPress={() => navigation.navigate('Swap')} style={styles.actionButton} />
         <PrimaryButton label="Browser" onPress={() => navigation.navigate('Browser')} style={styles.actionButton} />
+      </View>
+
+      <View style={styles.assetsCard}>
+        <Text style={styles.label}>Assets</Text>
+        <View style={styles.assetHeader}>
+          <Text style={styles.assetHeaderText}>Token</Text>
+          <Text style={styles.assetHeaderText}>Balance</Text>
+          <Text style={styles.assetHeaderText}>USD</Text>
+        </View>
+        <View style={styles.tokenRow}>
+          <View style={styles.tokenInfo}>
+            <View style={styles.tokenLogo}>
+              <Text style={styles.logoText}>SOL</Text>
+            </View>
+            <View>
+              <Text style={styles.tokenSymbol}>SOL</Text>
+              <Text style={styles.tokenPrice}>${solPrice?.toFixed(2) ?? '--'}</Text>
+            </View>
+          </View>
+          <Text style={styles.tokenValue}>{balances ? balances.sol.toFixed(4) : '--'}</Text>
+          <Text style={styles.tokenValue}>
+            ${solPrice && balances ? (balances.sol * solPrice).toFixed(2) : '--'}
+          </Text>
+        </View>
+        {balances?.tokens.length ? (
+          balances.tokens.map((token) => {
+            const symbol = token.mint.slice(0, 4);
+            const usdValue = token.balance * (tokenPrices[token.mint] ?? 0);
+            return (
+              <Pressable
+                key={token.address}
+                onLongPress={() => {
+                  if (token.balance === 0 && !closing) {
+                    handleCloseAccount(token.address);
+                  }
+                }}
+                style={styles.tokenRow}
+              >
+                <View style={styles.tokenInfo}>
+                  <View style={styles.tokenLogo}>
+                    <Text style={styles.logoText}>{symbol}</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.tokenSymbol}>{symbol}</Text>
+                    <Text style={styles.tokenPrice}>${(tokenPrices[token.mint] ?? 0).toFixed(4)}</Text>
+                  </View>
+                </View>
+                <Text style={styles.tokenValue}>{token.balance.toFixed(4)}</Text>
+                <Text style={styles.tokenValue}>${usdValue.toFixed(2)}</Text>
+              </Pressable>
+            );
+          })
+        ) : (
+          <Text style={styles.subtle}>No SPL tokens found.</Text>
+        )}
       </View>
 
       <View style={styles.card}>
