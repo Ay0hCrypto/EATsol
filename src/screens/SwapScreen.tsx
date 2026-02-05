@@ -3,13 +3,14 @@ import { Alert, ScrollView, StyleSheet, Text, Switch, View } from 'react-native'
 import { TextField } from '../components/TextField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { useWallet } from '../hooks/useWallet';
-import { getConnection, getBalances } from '../lib/solana';
+import { getConnection } from '../lib/solana';
 import { createSwapTransaction, getJupiterQuote, signAndSendSwap } from '../lib/jupiter';
 import { CONFIG } from '../config';
-import { TokenOption, TokenSelector } from '../components/TokenSelector';
 
 export function SwapScreen() {
   const { wallet } = useWallet();
+  const [inputMint, setInputMint] = useState('');
+  const [outputMint, setOutputMint] = useState('');
   const [amount, setAmount] = useState('');
   const [slippage, setSlippage] = useState('50');
   const [useHelius, setUseHelius] = useState(true);
@@ -50,7 +51,7 @@ export function SwapScreen() {
     if (!wallet) {
       return;
     }
-    if (!fromToken || !toToken || !amount) {
+    if (!inputMint || !outputMint || !amount) {
       Alert.alert('Missing fields', 'Fill in all swap fields.');
       return;
     }
@@ -87,9 +88,9 @@ export function SwapScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.heading}>Swap via Jupiter</Text>
-      <TokenSelector label="From" tokens={tokens} selected={fromToken} onSelect={setFromToken} />
-      <TokenSelector label="To" tokens={tokens} selected={toToken} onSelect={setToToken} />
-      <TextField value={amount} onChangeText={setAmount} placeholder="Amount" />
+      <TextField value={inputMint} onChangeText={setInputMint} placeholder="Input mint" />
+      <TextField value={outputMint} onChangeText={setOutputMint} placeholder="Output mint" />
+      <TextField value={amount} onChangeText={setAmount} placeholder="Amount (base units)" />
       <TextField value={slippage} onChangeText={setSlippage} placeholder="Slippage (bps)" />
       <View style={styles.row}>
         <Text>Use Helius backrun</Text>

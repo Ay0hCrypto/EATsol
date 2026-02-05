@@ -55,7 +55,7 @@ export function SendScreen({ navigation }: NativeStackScreenProps<RootStackParam
       return;
     }
     const amountValue = Number(amount);
-    if (!destination || Number.isNaN(amountValue) || !selectedToken) {
+    if (!destination || Number.isNaN(amountValue)) {
       Alert.alert('Invalid input', 'Destination and amount are required.');
       return;
     }
@@ -69,11 +69,11 @@ export function SendScreen({ navigation }: NativeStackScreenProps<RootStackParam
           setSending(true);
           try {
             const connection = getConnection();
-            if (selectedToken.symbol === 'SOL') {
+            if (!mint) {
               await sendSol(connection, wallet, destination, amountValue);
             } else {
-              const decimalsValue = selectedToken.decimals ?? 0;
-              await sendSplToken(connection, wallet, destination, selectedToken.mint, amountValue, decimalsValue);
+              const decimalsValue = Number(decimals);
+              await sendSplToken(connection, wallet, destination, mint, amountValue, decimalsValue || 0);
             }
             Alert.alert('Success', 'Transaction sent.');
             navigation.goBack();
